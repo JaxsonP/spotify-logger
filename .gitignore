@@ -1,4 +1,6 @@
 venv/
-secrets.py
 .cache
 __pycache__/
+
+secrets.txt
+song_list.csv

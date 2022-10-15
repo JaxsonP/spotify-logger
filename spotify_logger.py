@@ -1,7 +1,8 @@
 import os
-import requests
-
-
+import secrets
+import time
+import csv
+import logging
 import spotipy
 
 import secrets
@@ -10,53 +11,79 @@ import secrets
 
 def main():
 
-  os.environ["SPOTIPY_CLIENT_ID"] = secrets.SPOTIFY_CLIENT_ID
-  os.environ["SPOTIPY_CLIENT_SECRET"] = secrets.SPOTIFY_CLIENT_SECRET
+  # logging config
+  #logging.basicConfig(filename='app.log', format='%(name)s - %(levelname)s - %(message)s')
+
+
+  # authorization
+  with open ("secrets.txt", "r") as f:
+    os.environ["SPOTIPY_CLIENT_ID"] = f.readline().split("=")[1].strip()
+    os.environ["SPOTIPY_CLIENT_SECRET"] = f.readline().split("=")[1].strip()
   os.environ["SPOTIPY_REDIRECT_URI"] = "http://127.0.0.1:9090"
+  time.sleep(0.01)
   spotify = spotipy.Spotify(auth_manager=spotipy.oauth2.SpotifyOAuth(scope="user-read-playback-state"))
   print(f"Successfully connected as {spotify.me()['display_name']} [{spotify.me()['id']}]")
-  
+
+  current_item_id = ""
 
   while True:
 
-    new_item = {}
+    #time.sleep(3)
+    print("Gathering playback data")
+    playback = spotify.current_playback()
+    #print(playback)
 
-    print("Waiting for playback data...")
-    try:
-      playback = spotify.current_playback()
-      #print(playback)
-    except Exception as e:
-      print("!!! error while polling for playback data:")
-      print(e)
+    # spotify not playing
+    if playback == None:
       continue
-
-    if playback["is_playing"] == False:
-      pass#continue
-
-    new_item["timestamp"] = playback["timestamp"]
-    new_item["id"] = playback["item"]['id']
-    new_item["name"] = playback["item"]['name']
-
-    artists = playback["item"]["artists"]
-    new_item["artists"] = ",".join([artist["name"] for artist in artists])
-
-    genres = []
-    for artist in artists:
-      print("\n", artist["name"])
-      artist_info = spotify.artist(artist["id"])
-      genres += artist_info['genres']
-      print(artist_info)
     
-    new_item["genres"] = ",".join(genres)
+    # spotify paused
+    if not playback["is_playing"]:
+      continue
+    
+    # song hasn't changed
+    if current_item_id == playback["item"]["id"]:
+      continue
+    current_item_id = playback["item"]["id"]
 
-    song_info = spotify.track(playback["item"]["id"])
-    print("\n", song_info)
-    new_item["popularity"] = playback['item']["popularity"]
+    # writing new entry <<<<<<<
+    new_entry = {}
+
+    # basic track info
+    new_entry["Timestamp"] = playback["timestamp"]
+    new_entry["Item ID"] = playback["item"]["id"]
+    new_entry["Item Name"] = playback["item"]["name"]
+    new_entry["Item Type"] = playback["item"]["type"]
+
+    # artist info
+    """artists = []
+    artist_uris = []
+    for artist in playback["item"]["artists"]:
+      artists.append(artist["name"])
+      artist_uris.append(artist["uri"])
+    new_entry["Artists"] = ",".join(artists)
+
+    # genres
+    genres = []
+    artist_info = spotify.artists(",".join(artist_uris[:]))
+    print(artist_info)
+    for artist in artist_info["artists"]:
+      print(artist["genres"])"""
+
+    # further track info
+    new_entry["Length"] = playback["item"]["duration_ms"]
+    new_entry["Explicit"] = playback["item"]["explicit"]
+    new_entry["Popularity"] = playback["item"]["popularity"]
 
 
+    
+    # writing to csv output file
+    with open("song_list.csv", "w", newline='') as f:
+      writer = csv.DictWriter(f, fieldnames=new_entry.keys())
 
-    print("\n\n\n")
-    [print(f"{key}: {new_item[key]}") for key in new_item.keys()]
+      writer.writeheader()
+      writer.writerow(new_entry)
+    
     break
 
   return True
@@ -73,112 +100,107 @@ if __name__ == "__main__":
 """
 {
   'device': {
-    'id': '30c7c4be6ea00b3309f7939ce7ed0607f747aeb0',
+    'id': '92d00828495829e5f16156ac905c3c036e392dcb',
     'is_active': True,
     'is_private_session': False,
     'is_restricted': False,
-    'name': 'DESKTOP-R4KO',
-    'type': 'Computer',
-    'volume_percent': 49
+    'name': 'iPhone',
+    'type': 'Smartphone',
+    'volume_percent': 100
   },
   'shuffle_state': True,
   'repeat_state': 'off',
-  'timestamp': 1660598350711,
+  'timestamp': 1665756907419,
   'context': {
     'external_urls': {
-      'spotify': 'https://open.spotify.com/artist/4kqFrZkeqDfOIEqTWqbOOV'
+      'spotify': 'https://open.spotify.com/playlist/0AsFjsOazAIa19F1k1tSar'
     },
-    'href': 'https://api.spotify.com/v1/artists/4kqFrZkeqDfOIEqTWqbOOV',
-    'type': 'artist',
-    'uri': 'spotify:artist:4kqFrZkeqDfOIEqTWqbOOV'
+    'href': 'https://api.spotify.com/v1/playlists/0AsFjsOazAIa19F1k1tSar',
+    'type': 'playlist',
+    'uri': 'spotify:playlist:0AsFjsOazAIa19F1k1tSar'
   },
-  'progress_ms': 25545,
+  'progress_ms': 34620,
   'item': {
     'album': {
       'album_type': 'album',
       'artists': [
         {
           'external_urls': {
-            'spotify': 'https://open.spotify.com/artist/4kqFrZkeqDfOIEqTWqbOOV'
+            'spotify': 'https://open.spotify.com/artist/4hR6Bm9YYtktXzjmKhb1Cn'
           },
-          'href': 'https://api.spotify.com/v1/artists/4kqFrZkeqDfOIEqTWqbOOV',
-          'id': '4kqFrZkeqDfOIEqTWqbOOV',
-          'name': 'brakence',
+          'href': 'https://api.spotify.com/v1/artists/4hR6Bm9YYtktXzjmKhb1Cn',
+          'id': '4hR6Bm9YYtktXzjmKhb1Cn',
+          'name': 'ericdoa',
           'type': 'artist',
-          'uri': 'spotify:artist:4kqFrZkeqDfOIEqTWqbOOV'
+          'uri': 'spotify:artist:4hR6Bm9YYtktXzjmKhb1Cn'
         }
       ],
-      'available_markets': [
-       
-      ],
+      
       'external_urls': {
-        'spotify': 'https://open.spotify.com/album/0BAmcZfsraNVyG6rj782Og'
+        'spotify': 'https://open.spotify.com/album/72K9c2D3M69XFFVKiIZuUU'
       },
-      'href': 'https://api.spotify.com/v1/albums/0BAmcZfsraNVyG6rj782Og',
-      'id': '0BAmcZfsraNVyG6rj782Og',
+      'href': 'https://api.spotify.com/v1/albums/72K9c2D3M69XFFVKiIZuUU',
+      'id': '72K9c2D3M69XFFVKiIZuUU',
       'images': [
         {
           'height': 640,
-          'url': 'https://i.scdn.co/image/ab67616d0000b273eb88e3c32c3bb61e318695b3',
+          'url': 'https://i.scdn.co/image/ab67616d0000b27340c036752aa4a53b091de6d1',
           'width': 640
         },
         {
           'height': 300,
-          'url': 'https://i.scdn.co/image/ab67616d00001e02eb88e3c32c3bb61e318695b3',
+          'url': 'https://i.scdn.co/image/ab67616d00001e0240c036752aa4a53b091de6d1',
           'width': 300
         },
         {
           'height': 64,
-          'url': 'https://i.scdn.co/image/ab67616d00004851eb88e3c32c3bb61e318695b3',
+          'url': 'https://i.scdn.co/image/ab67616d0000485140c036752aa4a53b091de6d1',
           'width': 64
         }
       ],
-      'name': 'punk2',
-      'release_date': '2020-07-01',
+      'name': 'COA',
+      'release_date': '2020-11-06',
       'release_date_precision': 'day',
       'total_tracks': 11,
       'type': 'album',
-      'uri': 'spotify:album:0BAmcZfsraNVyG6rj782Og'
+      'uri': 'spotify:album:72K9c2D3M69XFFVKiIZuUU'
     },
     'artists': [
       {
         'external_urls': {
-          'spotify': 'https://open.spotify.com/artist/4kqFrZkeqDfOIEqTWqbOOV'
+          'spotify': 'https://open.spotify.com/artist/4hR6Bm9YYtktXzjmKhb1Cn'
         },
-        'href': 'https://api.spotify.com/v1/artists/4kqFrZkeqDfOIEqTWqbOOV',
-        'id': '4kqFrZkeqDfOIEqTWqbOOV',
-        'name': 'brakence',
+        'href': 'https://api.spotify.com/v1/artists/4hR6Bm9YYtktXzjmKhb1Cn',
+        'id': '4hR6Bm9YYtktXzjmKhb1Cn',
+        'name': 'ericdoa',
         'type': 'artist',
-        'uri': 'spotify:artist:4kqFrZkeqDfOIEqTWqbOOV'
+        'uri': 'spotify:artist:4hR6Bm9YYtktXzjmKhb1Cn'
       }
     ],
-    'available_markets': [
-      
-    ],
+
     'disc_number': 1,
-    'duration_ms': 137751,
+    'duration_ms': 126563,
     'explicit': True,
     'external_ids': {
-      'isrc': 'USSM12003809'
+      'isrc': 'QZMER2028979'
     },
     'external_urls': {
-      'spotify': 'https://open.spotify.com/track/1XnnLXcvFd21B25H4IHEIY'
+      'spotify': 'https://open.spotify.com/track/36TaRW67lRRJaMC9hSNy25'
     },
-    'href': 'https://api.spotify.com/v1/tracks/1XnnLXcvFd21B25H4IHEIY',
-    'id': '1XnnLXcvFd21B25H4IHEIY',
+    'href': 'https://api.spotify.com/v1/tracks/36TaRW67lRRJaMC9hSNy25',
+    'id': '36TaRW67lRRJaMC9hSNy25',
     'is_local': False,
-    'name': 'fwb',
-    'popularity': 54,
-    'preview_url': 'https://p.scdn.co/mp3-preview/e399070abec3e104a3bd5e410f9d9560627594d3?cid=fe463969182142bdaac06fc2b96227c9',
-    'track_number': 3,
+    'name': 'self sabotage',
+    'popularity': 43,
+    'preview_url': 'https://p.scdn.co/mp3-preview/de85e1d7ffc8e31d16abcec0c1842cd858210d7e?cid=fe463969182142bdaac06fc2b96227c9',
+    'track_number': 4,
     'type': 'track',
-    'uri': 'spotify:track:1XnnLXcvFd21B25H4IHEIY'
+    'uri': 'spotify:track:36TaRW67lRRJaMC9hSNy25'
   },
   'currently_playing_type': 'track',
   'actions': {
     'disallows': {
-      'resuming': True,
-      'skipping_prev': True
+      'resuming': True
     }
   },
   'is_playing': True
